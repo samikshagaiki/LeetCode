@@ -1,80 +1,134 @@
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 class Solution {
-    
-          private static final String END = "$";
+    class State {
+        long board;
+        long hand;
 
-    public int findMinStep(String board, String hand) {
-        // count frequency of hand letter occurrence
-        final Map<Character, Integer> map = new HashMap<>();
-        for (char c : hand.toCharArray()) {
-            map.put(c, map.getOrDefault(c, 0) + 1);
+        public State(long board, long hand) {
+            this.board = board;
+            this.hand = hand;
         }
-        // basic data structure for bfs
-        final Set<String> visited = new HashSet<>();
-        final Queue<String[]> queue = new LinkedList<>();
-        queue.offer(new String[]{board + END, hand});
-        int level = 0;
-        // breadth first search start
-        while (!queue.isEmpty()) {
-            // iterate by level
-            final int currentSize = queue.size();
-            for (int size = 0; size < currentSize; size++) {
-                final String[] currentPair = queue.poll();
-                final String nowBoard = removeSame(currentPair[0]);
-                // end condition
-                if (nowBoard.equals(END)) {
-                    return level;
+        @Override
+        public boolean equals(Object o) {
+            if (o == this) return true;
+            if (o == null || this.getClass() != o.getClass()) return false;
+            State object = (State) o;
+            return object.board == this.board && object.hand == this.hand;
+        }
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = result * 31 + Long.hashCode(board);
+            result = result * 31 + Long.hashCode(hand);
+            return result;
+        }
+    }
+    int max = 10;
+    public int findMinStep(String boardString, String handString) {
+        long hand = encodeHand(handString);
+        long board = encodeBoard(boardString);
+        Set<State> isVisited = new HashSet<>();
+        dfs(board, hand, 0, isVisited);
+        return max == 10 ? -1 : max;
+    }
+
+    private void dfs(long board, long hand, int curr, Set<State> isVisited) {
+        if (board == 0) {
+            max = Integer.min(max, curr);
+        }
+        if (curr >= max || hand == 0 || !isVisited.add(new State(board, hand))) {
+            return;
+        }
+
+        for (int i=0; i < 64; i+=3) {
+            long boardBall = (board >> i) & 7;
+            long nextBoardBall = (board >> (i + 3)) & 7;
+            long prevBoardBall = i == 0 ? 0 : (board >> (i-3)) & 7;
+
+            for (int j=0; j < 16; j+=3) {
+
+                long currBall = (hand >> j) & 7;
+                if (currBall == 0) break;
+
+                long prevBall = j == 0 ? 0 : (hand >> (j - 3)) & 7;
+                long newHand = ((hand >> (j+3)) << j) | (hand & ((1<<j)-1));
+
+                if (currBall == prevBall) { continue; }
+                if (currBall == prevBoardBall) { continue; }
+                if ((curr != 0 && currBall != boardBall) || (curr == 0 && currBall != boardBall && boardBall != prevBoardBall)) { continue; }
+
+                long newBoard = (board & ((1l<<i)-1)) | (currBall << i) | ((board>>i) << (i+3));
+                if (currBall == boardBall && currBall == nextBoardBall) {
+                    newBoard = trim(newBoard);
                 }
-                final String nowHand = currentPair[1];
-                // algo, for each position, for each hand, make new board and new hand,
-                // if not visited new board, add it into visited and queue.
-                for (int i = 0; i < nowBoard.length(); i++) {
-                    for (char h : nowHand.toCharArray()) {
-                        // if we has only one letter, then it should equal to its neighbor
-                        if (1 == map.getOrDefault(h, 0) && i > 1 && i < nowBoard.length() - 1
-                            && nowBoard.charAt(i) != h && h != nowBoard.charAt(i + 1)) {
-                            continue;
-                        }
-                        final String newString =
-                            nowBoard.substring(0, i) + h + nowBoard.substring(i);
-                        if (!visited.contains(newString)) {
-                            final String newHand = removeCharFromHand(nowHand, h);
-                            visited.add(newString);
-                            queue.offer(new String[]{newString, newHand});
-                        }
-                    }
+                dfs(newBoard, newHand, curr+1, isVisited);
+            }
+            if (boardBall == 0) break;
+        }
+    }
+    private long trim(long board) {
+        long stack = 0;
+        for (int i=0; i<64; i+=3) {
+            long currBall = (board >> i) & 7;
+            long top = stack & 7;
+            if (top !=0 && currBall != top && (stack & 63) == ((stack >> 3) & 63)) {
+                stack = stack >> 9;
+                while ((stack & 7) == top) {
+                    stack = stack >> 3;
                 }
             }
-            ++level;
+            if (currBall == 0) break;
+            stack = (stack<<3) | currBall;
         }
-        return -1;
+        return stack;
+    }
+    private void decode(long string) {
+        for (int i=0; i<64; i+=3) {
+            long ball = (string >> i) & 7;
+            if (ball == 0) { break;}
+            System.out.println(decodeChar(ball));
+        }
     }
 
-    private String removeCharFromHand(String hand, char c) {
-        final StringBuilder handBuild = new StringBuilder(hand);
-        for (int i = 0; i < handBuild.length(); i++) {
-            if (handBuild.charAt(i) == c) {
-                handBuild.deleteCharAt(i);
-                break;
-            }
+    private long encodeBoard(String board) {
+        long boardEncoded = 0;
+        for (int i=0; i < board.length(); i++) {
+            boardEncoded = (boardEncoded << 3) | encodeChar(board.charAt(i));
         }
-        return handBuild.toString();
+        return boardEncoded;
+    }
+    private long encodeHand(String hand) {
+        long[] handEncoded = new long[hand.length()];
+        for (int i=0; i < hand.length(); i++) {
+            handEncoded[i] = encodeChar(hand.charAt(i));
+        }
+        Arrays.sort(handEncoded);
+        long result = 0;
+        for(long ball: handEncoded) {
+            result = (result << 3) | ball;
+        }
+        return result;
+    }
+    private long encodeChar(char ch) {
+        return switch(ch) {
+            case 'R' -> 1;
+            case 'Y' -> 2;
+            case 'B' -> 3;
+            case 'G' -> 4;
+            case 'W' -> 5;
+            default -> throw new IllegalArgumentException();
+        };
+    }
+    private char decodeChar(long ch) {
+        return switch((int) ch) {
+            case 1 -> 'R';
+            case 2 -> 'Y';
+            case 3 -> 'B';
+            case 4 -> 'G';
+            case 5 -> 'W';
+            default -> throw new IllegalArgumentException();
+        };
     }
 
-    private String removeSame(String s) {
-        if (s.isEmpty()) {
-            return s;
-        }
-        int start = 0;
-        for (int i = 0; i < s.length(); i++) {
-            if (s.charAt(i) == s.charAt(start)) {
-                continue;
-            }
-            if (i - start >= 3) {
-                return removeSame(s.substring(0, start) + s.substring(i));
-            } else {
-                start = i;
-            }
-        }
-        return s;
-    }
 }
