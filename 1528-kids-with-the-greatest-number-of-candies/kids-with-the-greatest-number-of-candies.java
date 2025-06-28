@@ -6,8 +6,7 @@ class Solution {
             max=Math.max(max,candies[i]);
         }
         for(int i=0;i<candies.length;i++){
-            int sum = candies[i]+extraCandies;
-                if(sum>=max){
+                if(candies[i]+extraCandies>=max){
                     result.add(true);
                 }else{
                     result.add(false);
