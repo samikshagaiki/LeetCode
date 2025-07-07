@@ -1,23 +1,38 @@
+import java.util.*;
+
 class Solution {
     public int maxEvents(int[][] events) {
-        Arrays.sort(events,(a,b)->a[0]-b[0]);
-        PriorityQueue<Integer> pq = new PriorityQueue<>();
-        int count=0;
-        int index=0;
-        for(int day = 1;day<=100000;day++){
-            //remove all those events which ended before today
-            while(!pq.isEmpty()&&pq.peek()<day){
-                pq.poll();
+        // Step 1: Sort events by start day
+        Arrays.sort(events, Comparator.comparingInt(a -> a[0]));
+
+        PriorityQueue<Integer> minHeap = new PriorityQueue<>();
+        int day = 0, i = 0, n = events.length, attended = 0;
+
+        while (i < n || !minHeap.isEmpty()) {
+            // Step 2: Move to the next available day
+            if (minHeap.isEmpty()) {
+                day = events[i][0];
             }
-            //add all the events on that day 
-            while(index<events.length&&events[index][0]==day){
-                pq.add(events[index++][1]);
+
+            // Step 3: Add all events starting today
+            while (i < n && events[i][0] <= day) {
+                minHeap.offer(events[i][1]); // add event's end day
+                i++;
             }
-            if(!pq.isEmpty()){
-                pq.poll();
-                count++;
+
+            // Step 4: Attend event with earliest end day
+            if (!minHeap.isEmpty()) {
+                minHeap.poll();  // attend event today
+                attended++;
+                day++;           // move to next day
+            }
+
+            // Step 5: Remove expired events
+            while (!minHeap.isEmpty() && minHeap.peek() < day) {
+                minHeap.poll();
             }
         }
-        return count;
+
+        return attended;
     }
 }
