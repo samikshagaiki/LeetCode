@@ -13,8 +13,8 @@ class Solution {
 
             int sum = bitA + bitB + carry;
 
-            result.append(sum % 2); // Append result bit
-            carry = sum / 2;        // Update carry
+            result.append(sum % 2); 
+            carry = sum / 2;       
         }
 
         return result.reverse().toString();
